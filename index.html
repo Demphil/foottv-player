@@ -10,17 +10,17 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: #000;
             font-family: 'Tajawal', sans-serif, Arial; color: white;
-            display: flex; flex-direction: column; /* لترتيب الأزرار فوق المشغل */
+            display: flex; flex-direction: column;
         }
         #server-buttons {
-            padding: 8px; background-color: #1a2533; display: none; /* إخفاء مبدئي */
-            gap: 8px; flex-wrap: wrap; justify-content: center;
+            padding: 10px; background-color: #1a2533; display: flex;
+            gap: 10px; flex-wrap: wrap; justify-content: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
         }
         .server-btn {
             background-color: #2c3e50; color: white; border: 1px solid #34495e;
-            padding: 6px 14px; border-radius: 20px; cursor: pointer;
+            padding: 8px 16px; border-radius: 20px; cursor: pointer;
             font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 700;
             transition: all 0.2s ease;
         }
@@ -29,87 +29,97 @@
             background-color: #e63946; border-color: #f1faee;
         }
         #player-container {
-            flex-grow: 1; /* لجعل المشغل يملأ باقي المساحة */
-            width: 100%; height: 100%;
+            flex-grow: 1; width: 100%; height: 100%;
         }
         iframe {
             width: 100%; height: 100%; border: none;
         }
         .message-container {
-            display: flex; flex-direction: column; justify-content: center;
-            align-items: center; height: 100%; padding: 20px; text-align: center;
+            display: flex; justify-content: center; align-items: center;
+            height: 100%; padding: 20px; text-align: center;
+            font-size: 1.2em;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"/>
 </head>
 <body>
-    <!-- سيتم وضع المحتوى هنا بواسطة JavaScript -->
-    <div id="wrapper" style="width:100%; height:100%; display: flex; flex-direction: column;">
-        <div id="server-buttons"></div>
-        <div id="player-container"></div>
+    <div id="server-buttons"></div>
+    <div id="player-container">
+        <!-- سيتم إنشاء المشغل هنا بواسطة JavaScript -->
     </div>
 
     <script>
+        // <![CDATA[
         document.addEventListener("DOMContentLoaded", function() {
-            const wrapper = document.getElementById('wrapper');
+
+            // ==========================================================
+            // === الإعدادات: قم بتعديل الروابط في هذا القسم فقط ===
+            // ==========================================================
+
+            // 1. ضع قائمة روابط السيرفرات هنا (رابط لكل سطر داخل علامات التنصيص)
+            const SERVER_URLS = [
+               "https://ac.yalla1shoot.club/albaplayer/sports-b3/", // سيرفر 1
+            "https://mbc.aflam4you.net/playeraf.php?vid=167&aflam_s=1&aflam_k=18811111111", // سيرفر 2 (مثال)
+            "https://direct.aflam4you.net/playeraf.php?vid=5&aflam_s=1&aflam_k=18811111111" , // سيرفر 3 (مثال)
+        ];
+
+            // 2. ضع رابط العامل (Cloudflare Worker) الأساسي الخاص بك هنا
+            const WORKER_URL = "https://withered-mud-4e52.koora-live.workers.dev/";
+
+            // ==========================================================
+            // === لا تقم بتعديل أي شيء تحت هذا السطر ===
+            // ==========================================================
+
             const buttonContainer = document.getElementById('server-buttons');
             const playerContainer = document.getElementById('player-container');
-
+            
             try {
-                const urlParams = new URLSearchParams(window.location.search);
-                // استخدام getAll للحصول على كل قيم البارامتر 'url'
-                const targetUrls = urlParams.getAll('url');
-
-                if (targetUrls.length === 0) {
-                    throw new Error("لم يتم توفير أي روابط للمشغل.");
+                if (!WORKER_URL || WORKER_URL.startsWith('---')) {
+                    throw new Error("الرجاء تحديد رابط العامل (Worker) في الكود.");
                 }
 
-                const workerUrl = "https://withered-mud-4e52.koora-live.workers.dev/";
+                const cleanUrls = SERVER_URLS.filter(url => url && !url.startsWith('---'));
+
+                if (cleanUrls.length === 0) {
+                    throw new Error("الرجاء إضافة رابط سيرفر واحد على الأقل.");
+                }
+
                 const iframe = document.createElement('iframe');
                 iframe.allowfullscreen = true;
                 playerContainer.appendChild(iframe);
 
                 const loadStream = (url) => {
-                    if (url) {
-                        iframe.src = workerUrl + '?url=' + encodeURIComponent(url);
-                    }
+                    const finalSrc = WORKER_URL + '?url=' + encodeURIComponent(url);
+                    iframe.src = finalSrc;
                 };
-                
-                // إنشاء أزرار السيرفرات فقط إذا كان هناك أكثر من رابط واحد
-                if (targetUrls.length > 1) {
-                    buttonContainer.style.display = 'flex'; // إظهار حاوية الأزرار
-                    targetUrls.forEach((url, index) => {
-                        const button = document.createElement("button");
-                        button.className = "server-btn";
-                        button.textContent = "Server " + (index + 1);
-                        
-                        button.addEventListener('click', () => {
-                            buttonContainer.querySelectorAll('.server-btn').forEach(btn => btn.classList.remove('active'));
-                            button.classList.add('active');
-                            loadStream(url);
-                        });
-                        
-                        buttonContainer.appendChild(button);
+
+                cleanUrls.forEach((url, index) => {
+                    const button = document.createElement("button");
+                    button.className = "server-btn";
+                    button.textContent = "Server " + (index + 1);
+                    
+                    button.addEventListener('click', function() {
+                        buttonContainer.querySelectorAll('.server-btn').forEach(btn => btn.classList.remove('active'));
+                        this.classList.add('active');
+                        loadStream(url);
                     });
-                }
+                    
+                    buttonContainer.appendChild(button);
+                });
                 
-                // تحميل أول رابط بشكل افتراضي وتفعيل أول زر
-                loadStream(targetUrls[0]);
-                const firstButton = wrapper.querySelector('.server-btn');
-                if(firstButton) {
+                // تحميل أول رابط وتفعيل أول زر تلقائيًا
+                const firstButton = buttonContainer.querySelector('.server-btn');
+                if (firstButton) {
                     firstButton.classList.add('active');
+                    loadStream(cleanUrls[0]);
                 }
 
             } catch (error) {
-                wrapper.innerHTML = `
-                    <div class="message-container">
-                        <h3>حدث خطأ</h3>
-                        <p>${error.message}</p>
-                    </div>
-                `;
+                playerContainer.innerHTML = `<div class="message-container">${error.message}</div>`;
                 console.error("Player Error:", error);
             }
         });
+        // ]]>
     </script>
 </body>
 </html>
