@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مشغل الفيديو - FootTV</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>FootTV</title>
     <style>
         /* CSS لضمان ملء الشاشة وتصميم أنيق */
         body, html {
@@ -16,8 +16,39 @@
             font-family: 'Tajawal', sans-serif, Arial;
             color: white;
             display: flex;
+            flex-direction: column; /* لترتيب الأزرار فوق المشغل */
+        }
+        #server-buttons {
+            padding: 8px;
+            background-color: #1a2533;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
             justify-content: center;
-            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0; /* لمنع هذا العنصر من الانكماش */
+        }
+        .server-btn {
+            background-color: #2c3e50;
+            color: white;
+            border: 1px solid #34495e;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+        .server-btn:hover { background-color: #34495e; }
+        .server-btn.active {
+            background-color: #e63946; /* اللون الأساسي */
+            border-color: #f1faee; /* اللون الفاتح */
+        }
+        #player-container {
+            flex-grow: 1; /* لجعل المشغل يملأ باقي المساحة */
+            width: 100%;
+            height: 100%;
         }
         iframe {
             width: 100%;
@@ -25,13 +56,17 @@
             border: none;
         }
         .message-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
             padding: 20px;
             text-align: center;
-            max-width: 80%;
         }
         .message-container h3 {
             font-size: 1.5em;
-            color: #e63946; /* لون أحمر مميز */
+            color: #e63946;
             margin-bottom: 10px;
         }
         .message-container p {
@@ -40,48 +75,76 @@
         }
     </style>
     <!-- استيراد خط Tajawal لتحسين مظهر اللغة العربية -->
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"/>
 </head>
 <body>
-    <div id="player-container" style="width:100%; height:100%;">
-        <div class="message-container">
-            <p>...جاري تحميل المشغل</p>
-        </div>
+    <!-- سيتم وضع المحتوى هنا بواسطة JavaScript -->
+    <div id="wrapper" style="width:100%; height:100%; display: flex; flex-direction: column;">
     </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const container = document.getElementById('player-container');
+            const wrapper = document.getElementById('wrapper');
 
             try {
-                // 1. قراءة رابط صفحة المشغل الأصلية من شريط العنوان
-                // المتصفح يقوم بفك تشفير الرابط تلقائيًا عند قراءته
                 const urlParams = new URLSearchParams(window.location.search);
-                const targetUrl = urlParams.get('url');
+                // استخدام getAll للحصول على كل قيم البارامتر 'url'
+                const targetUrls = urlParams.getAll('url');
 
-                if (!targetUrl) {
-                    throw new Error("لم يتم توفير رابط المشغل في شريط العنوان.");
+                if (targetUrls.length === 0) {
+                    throw new Error("لم يتم توفير أي روابط للمشغل.");
                 }
 
-                // 2. رابط العامل (Worker) الخاص بك
                 const workerUrl = "https://withered-mud-4e52.koora-live.workers.dev/";
-
-                // 3. بناء الرابط النهائي الذي سيتم وضعه في الـ iframe
-                // نقوم بإعادة تشفير الرابط لضمان إرساله بشكل صحيح إلى العامل
-                const finalSrc = workerUrl + '?url=' + encodeURIComponent(targetUrl);
-
-                // 4. إنشاء عنصر iframe وإضافته للصفحة
                 const iframe = document.createElement('iframe');
-                iframe.src = finalSrc;
                 iframe.allowfullscreen = true;
 
-                // مسح رسالة التحميل ووضع المشغل مكانها
-                container.innerHTML = ''; 
-                container.appendChild(iframe);
+                // دالة لتحميل البث في الـ iframe
+                const loadStream = (url) => {
+                    // يجب أن نتأكد من أن الرابط ليس فارغًا
+                    if (url) {
+                        iframe.src = workerUrl + '?url=' + encodeURIComponent(url);
+                    }
+                };
+                
+                // إنشاء أزرار السيرفرات فقط إذا كان هناك أكثر من رابط واحد
+                if (targetUrls.length > 1) {
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.id = 'server-buttons';
+
+                    targetUrls.forEach((url, index) => {
+                        const button = document.createElement("button");
+                        button.className = "server-btn";
+                        button.textContent = "Server " + (index + 1);
+                        
+                        button.addEventListener('click', () => {
+                            // إزالة كلاس 'active' من كل الأزرار وتفعيله للزر المضعوط
+                            buttonContainer.querySelectorAll('.server-btn').forEach(btn => btn.classList.remove('active'));
+                            button.classList.add('active');
+                            // تحميل البث الموافق للزر
+                            loadStream(url);
+                        });
+                        
+                        buttonContainer.appendChild(button);
+                    });
+                    
+                    wrapper.appendChild(buttonContainer);
+                }
+                
+                const playerContainer = document.createElement('div');
+                playerContainer.id = 'player-container';
+                playerContainer.appendChild(iframe);
+                wrapper.appendChild(playerContainer);
+
+                // تحميل أول رابط بشكل افتراضي وتفعيل أول زر
+                loadStream(targetUrls[0]);
+                const firstButton = wrapper.querySelector('.server-btn');
+                if(firstButton) {
+                    firstButton.classList.add('active');
+                }
 
             } catch (error) {
-                // في حال حدوث أي خطأ، يتم عرض رسالة واضحة
-                container.innerHTML = `
+                wrapper.innerHTML = `
                     <div class="message-container">
                         <h3>حدث خطأ</h3>
                         <p>${error.message}</p>
@@ -93,4 +156,3 @@
     </script>
 </body>
 </html>
-
